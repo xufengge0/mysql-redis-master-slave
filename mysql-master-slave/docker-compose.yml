@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  mysql-master:
+    image: mysql:8.0
+    container_name: mysql-master
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: testdb
+      MYSQL_USER: repl
+      MYSQL_PASSWORD: replpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./master-data:/var/lib/mysql
+      - ./master.cnf:/etc/mysql/conf.d/master.cnf
+    networks:
+      - mysql-net
+
+  mysql-slave:
+    image: mysql:8.0
+    container_name: mysql-slave
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: testdb
+    ports:
+      - "3307:3306" # 映射到宿主机的3307，避免端口冲突
+    volumes:
+      - ./slave-data:/var/lib/mysql
+      - ./slave.cnf:/etc/mysql/conf.d/slave.cnf
+    depends_on:
+      - mysql-master
+    networks:
+      - mysql-net
+
+  proxysql:
+    image: proxysql/proxysql:latest
+    container_name: proxysql
+    ports:
+      - "6033:6033" # ProxySQL 的客户端连接端口
+      - "6032:6032" # ProxySQL 的管理端口
+    volumes:
+      - ./proxysql.cnf:/etc/proxysql.cnf # 挂载配置文件
+      - proxysql-data:/var/lib/proxysql # 持久化数据
+    depends_on:
+      - mysql-master
+      - mysql-slave
+    networks:
+      - mysql-net
+
+networks:
+  mysql-net:
+    driver: bridge
+
+volumes:
+  proxysql-data:

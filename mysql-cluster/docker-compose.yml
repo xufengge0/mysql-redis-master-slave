@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  management1:
+    image: mysql/mysql-cluster:8.0
+    container_name: management1
+    command: ndb_mgmd --ndb-nodeid=1
+    networks:
+      cluster:
+        ipv4_address: 192.168.0.2
+    volumes:
+      - ./mgm_data:/var/lib/ndbmgm  # 使用本地目录
+    healthcheck:
+      test: ["CMD", "ndb_mgm", "--connect-string=192.168.0.2:1186", "-e", "show"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ndb1:
+    image: mysql/mysql-cluster:8.0
+    container_name: ndb1
+    command: ndbd --ndb-nodeid=2 --connect-string=192.168.0.2:1186
+    networks:
+      cluster:
+        ipv4_address: 192.168.0.3
+    volumes:
+      - ./ndb1_data:/var/lib/mysql  # 使用本地目录
+    depends_on:
+      management1:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "ndb_mgm", "--connect-string=192.168.0.2:1186", "-e", "2 status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ndb2:
+    image: mysql/mysql-cluster:8.0
+    container_name: ndb2
+    command: ndbd --ndb-nodeid=3 --connect-string=192.168.0.2:1186
+    networks:
+      cluster:
+        ipv4_address: 192.168.0.4
+    volumes:
+      - ./ndb2_data:/var/lib/mysql  # 使用本地目录
+    depends_on:
+      management1:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "ndb_mgm", "--connect-string=192.168.0.2:1186", "-e", "3 status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mysql1:
+    image: mysql/mysql-cluster:8.0
+    container_name: mysql1
+    command: mysqld --ndbcluster --ndb-nodeid=4 --ndb-connectstring=192.168.0.2:1186
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+    ports:
+      - "13306:3306"
+    networks:
+      cluster:
+        ipv4_address: 192.168.0.10
+    volumes:
+      - ./mysql1_data:/var/lib/mysql  # 使用本地目录
+    depends_on:
+      ndb1:
+        condition: service_healthy
+      ndb2:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-ppassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+networks:
+  cluster:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.0.0/16

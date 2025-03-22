@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  # Redis Master
+  redis-master:
+    image: redis:7-alpine
+    container_name: redis-master
+    command: redis-server --port 6379
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]  # 检查 Redis 是否响应 PING
+      interval: 5s                        # 每 5 秒检查一次
+      timeout: 3s                         # 单次检查超时时间
+      retries: 5                          # 失败 5 次后标记为不健康
+      start_period: 10s                   # 启动后等待 10 秒开始检查
+    networks:
+      - redis-net
+
+  # Redis Slave 1
+  redis-slave1:
+    image: redis:7-alpine
+    container_name: redis-slave1
+    command: redis-server --slaveof redis-master 6379 --port 6379
+    ports:
+      - "6380:6379"
+    depends_on:
+      redis-master:
+        condition: service_healthy      # 等待 redis-master 健康
+    networks:
+      - redis-net
+
+  # Redis Slave 2
+  redis-slave2:
+    image: redis:7-alpine
+    container_name: redis-slave2
+    command: redis-server --slaveof redis-master 6379 --port 6379
+    ports:
+      - "6381:6379"
+    depends_on:
+      redis-master:
+        condition: service_healthy      # 等待 redis-master 健康
+    networks:
+      - redis-net
+
+  # Sentinel 1
+  sentinel1:
+    image: redis:7-alpine
+    container_name: redis-sentinel1
+    # command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    # command: /entrypoint.sh
+    volumes:
+      - ./sentinel1.conf:/usr/local/etc/redis/sentinel.conf
+      - ./entrypoint.sh:/entrypoint.sh
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    ports:
+      - "26379:26379"
+    depends_on:
+      redis-master:
+        condition: service_healthy      # 等待 redis-master 健康
+    networks:
+      - redis-net
+
+  # Sentinel 2
+  sentinel2:
+    image: redis:7-alpine
+    container_name: redis-sentinel2
+    # command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    volumes:
+      - ./sentinel1.conf:/usr/local/etc/redis/sentinel.conf
+      - ./entrypoint.sh:/entrypoint.sh
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    ports:
+      - "26380:26379"
+    depends_on:
+      redis-master:
+        condition: service_healthy      # 等待 redis-master 健康
+    networks:
+      - redis-net
+
+  # Sentinel 3
+  sentinel3:
+    image: redis:7-alpine
+    container_name: redis-sentinel3
+    # command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    volumes:
+      - ./sentinel1.conf:/usr/local/etc/redis/sentinel.conf
+      - ./entrypoint.sh:/entrypoint.sh
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    ports:
+      - "26381:26379"
+    depends_on:
+      redis-master:
+        condition: service_healthy      # 等待 redis-master 健康
+    networks:
+      - redis-net
+
+networks:
+  redis-net:
+    driver: bridge

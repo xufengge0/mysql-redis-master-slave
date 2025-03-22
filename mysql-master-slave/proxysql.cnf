@@ -1,0 +1,15 @@
+# proxysql.cnf
+datadir="/var/lib/proxysql"
+admin_variables=
+{
+    admin_credentials="admin:admin" # 管理用户和密码
+    mysql_ifaces="0.0.0.0:6032"     # 管理端口
+}
+
+mysql_variables=
+{
+    threads=4
+    max_connections=1024
+    default_query_delay=0
+    interfaces="0.0.0.0:6033"       # 客户端连接端口
+}
