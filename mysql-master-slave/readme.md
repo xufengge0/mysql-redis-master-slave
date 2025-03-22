@@ -1,5 +1,5 @@
-## MySQL 主从复制启动流程
-
+## MySQL 主从复制并配置ProxySQL代理
+搭建了一个一主一从的mysql集群（主写从读），并配置proxySQL作为代理分离读写请求，客户端直接连接代理进行读写即可，若某一节点挂了，相应的请求会无法处理，节点恢复后需要手动加载一下配置到runtime。
 按照以下步骤设置并启动 `mysql-master-slave` 文件夹中的 MySQL 主从复制配置。
 
 1. **启动 Docker Compose 服务**：
